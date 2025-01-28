@@ -8,7 +8,7 @@ public class HelloWorldController {
 
     @GetMapping
     public String hello() {
-        return "Opsera Testing with nexus rollback test2";
+        return "Welcome to opsera";
          
     }
 }
