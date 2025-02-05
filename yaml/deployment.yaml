@@ -48,7 +48,7 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   rules:
-  - host: lineaje-demo1.lineaje.opsera.io
+  - host: lineaje-demo.lineaje.opsera.io
     http:
       paths:
       - path: /
