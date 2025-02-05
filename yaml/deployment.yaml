@@ -1,8 +1,7 @@
-# Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name:  lineaje-demo
+  name: lineaje-demo
 spec:
   replicas: 1
   selector:
@@ -15,43 +14,47 @@ spec:
     spec:
       containers:
         - name: back-end
-          image: 522814735753.dkr.ecr.us-east-2.amazonaws.com/lineaje-repo:20250205045928
+          image: 440953937617.dkr.ecr.us-east-2.amazonaws.com/helloworld-demo-new:20250128123532-patched
           ports:
-            - containerPort: 8080 
-
+            - containerPort: 8080
+          env:
+          - name: DOCKER_ENV
+            value: "dev"
 ---
-
-# Service
+#Service
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    app.kubernetes.io/name: lineaje-demo
   name: lineaje-demo
 spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
   selector:
     app: lineaje-demo-app
-  ports:
-    - protocol: TCP
-      port: 80 
-      targetPort: 8080 
-  type: LoadBalancer 
-
+  sessionAffinity: None
+  type: ClusterIP
 ---
-
 # Ingress
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: lineaje-demo
+  annotations:
+    kubernetes.io/ingress.class: nginx
 spec:
   rules:
-    - host: lineaje-demo.opsera.io
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: lineaje-demo
-                port:
-                  number: 80
-  
+  - host: lineaje-demo.opsera.io
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: lineaje-demo
+            port:
+              number: 8080
