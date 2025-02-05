@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: back-end
-          image: 440953937617.dkr.ecr.us-east-2.amazonaws.com/helloworld-demo-new:20250128123532-patched
+          image: 522814735753.dkr.ecr.us-east-2.amazonaws.com/lineaje-repo:20250205045928
           ports:
             - containerPort: 8080 
 
