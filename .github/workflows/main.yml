@@ -1,0 +1,99 @@
+name: API Call and Image Patch Monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'API URL for image patch status'
+        required: false
+        default: 'https://api.opsera-test.opsera.io/api/v2/lineaje/image/patch/status'
+        type: string
+      poll_interval:
+        description: 'Polling interval in seconds'
+        required: false
+        default: '10'
+        type: string
+      max_attempts:
+        description: 'Maximum number of polling attempts'
+        required: false
+        default: '60'
+        type: string
+
+jobs:
+  call-api:
+    runs-on: ubuntu-latest
+    outputs:
+      uuid: ${{ steps.call_api.outputs.uuid }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show current timestamp
+        run: |
+          echo "Current timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+      - name: Call API and extract uuid
+        id: call_api
+        run: |
+          response=$(curl --silent --location 'https://api.opsera-test.opsera.io/api/v2/lineaje/image/patch' \
+            --header 'Content-Type: application/json' \
+            --header 'Authorization: Bearer ${{ secrets.OPSERA_API_TOKEN }}' \
+            --data '{
+                "image": "opseratrial.jfrog.io/ldapowner-repo/debian:12",
+                "toolId": "678f33cc24f4710026a4b58f",
+                "organizationId": "vdna_neQ2JsuKUFO7HZ7c",
+                "source": {
+                    "platform": "JFROG",
+                    "repositoryName": "ldapowner-repo",
+                    "jfrogToolId": "6891b5a5b360b3ffac4f4d34"
+                }
+            }')
+
+          echo "Full API Response: $response"
+
+          # Extract the UUID (adjust the field name if needed)
+          uuid=$(echo "$response" | jq -r '.uuid')
+
+          echo "uuid=$uuid" >> $GITHUB_OUTPUT
+
+      - name: Store UUID in GitHub environment
+        run: |
+          echo "UUID=${{ steps.call_api.outputs.uuid }}" >> $GITHUB_ENV
+          echo "Stored UUID in GitHub environment: ${{ steps.call_api.outputs.uuid }}"
+
+  monitor-image-patch:
+    needs: call-api
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup script permissions
+        run: chmod +x scripts/image-patch-monitor.sh
+
+      - name: Run image patch monitor
+        env:
+          API_URL: ${{ github.event.inputs.api_url || 'https://api.opsera-test.opsera.io/api/v2/lineaje/image/patch/status' }}
+          UUID: ${{ needs.call-api.outputs.uuid }}
+          TOKEN: ${{ secrets.OPSERA_API_TOKEN }}
+          POLL_INTERVAL: ${{ github.event.inputs.poll_interval || '10' }}
+          MAX_ATTEMPTS: ${{ github.event.inputs.max_attempts || '60' }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+             echo "🔑 Using UUID: $UUID"
+            ./scripts/image-patch-monitor.sh
+          else
+            echo "❌ No token provided. Please set OPSERA_API_TOKEN secret or provide token input."
+            exit 1
+          fi
+        
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-patch-logs
+          path: |
+            **/*.log
+            sbom.json
+          retention-days: 7
